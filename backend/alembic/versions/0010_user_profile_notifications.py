@@ -1,8 +1,6 @@
 """Revision 0010 — User profile fields and workspace notifications."""
 
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = "0010_user_profile_notifications"
 down_revision = "0009_auto_backlink_engine"
@@ -11,32 +9,33 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("users", sa.Column("timezone", sa.String(length=80), nullable=True))
-    op.add_column("users", sa.Column("organization", sa.String(length=200), nullable=True))
-    op.add_column("users", sa.Column("job_title", sa.String(length=120), nullable=True))
-    op.add_column("users", sa.Column("website", sa.String(length=2048), nullable=True))
-    op.add_column("users", sa.Column("bio", sa.Text(), nullable=True))
-    op.add_column(
-        "users",
-        sa.Column("notification_prefs", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
+    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(80)")
+    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS organization VARCHAR(200)")
+    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR(120)")
+    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS website VARCHAR(2048)")
+    op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT")
+    op.execute(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_prefs JSONB NOT NULL DEFAULT '{}'::jsonb"
     )
-
-    op.create_table(
-        "notifications",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("source_key", sa.String(length=180), nullable=False),
-        sa.Column("kind", sa.String(length=32), nullable=False, server_default="info"),
-        sa.Column("title", sa.String(length=300), nullable=False),
-        sa.Column("body", sa.Text(), nullable=False),
-        sa.Column("href", sa.String(length=500), nullable=True),
-        sa.Column("is_read", sa.Boolean(), nullable=False, server_default=sa.text("false")),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.UniqueConstraint("user_id", "source_key", name="uq_notifications_user_source"),
+    op.execute(
+        """
+        CREATE TABLE IF NOT EXISTS notifications (
+            id UUID PRIMARY KEY,
+            user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+            source_key VARCHAR(180) NOT NULL,
+            kind VARCHAR(32) NOT NULL DEFAULT 'info',
+            title VARCHAR(300) NOT NULL,
+            body TEXT NOT NULL,
+            href VARCHAR(500),
+            is_read BOOLEAN NOT NULL DEFAULT false,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            CONSTRAINT uq_notifications_user_source UNIQUE (user_id, source_key)
+        )
+        """
     )
-    op.create_index("ix_notifications_user_id", "notifications", ["user_id"])
-    op.create_index("ix_notifications_is_read", "notifications", ["is_read"])
-    op.create_index("ix_notifications_created_at", "notifications", ["created_at"])
+    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_is_read ON notifications (is_read)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications (created_at)")
 
 
 def downgrade() -> None:

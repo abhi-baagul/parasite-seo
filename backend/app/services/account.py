@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 from sqlalchemy import select
@@ -18,6 +19,8 @@ from app.models.parasite_seo import ParasiteSEOJob
 from app.models.project import Project
 from app.models.public_page import PublicPage
 from app.models.user import User
+
+logger = logging.getLogger("app.account")
 
 DEFAULT_PREFS = {
     "publishing": True,
@@ -195,16 +198,21 @@ def refresh_notifications(session: Session, user: User) -> None:
 
 
 def list_notifications(session: Session, user: User) -> list[dict]:
-    refresh_notifications(session, user)
-    rows = list(
-        session.scalars(
-            select(Notification)
-            .where(Notification.user_id == user.id)
-            .order_by(Notification.created_at.desc())
-            .limit(40)
+    try:
+        refresh_notifications(session, user)
+        rows = list(
+            session.scalars(
+                select(Notification)
+                .where(Notification.user_id == user.id)
+                .order_by(Notification.created_at.desc())
+                .limit(40)
+            )
         )
-    )
-    return [serialize_notification(row) for row in rows]
+        return [serialize_notification(row) for row in rows]
+    except Exception:
+        logger.exception("notification_refresh_failed")
+        session.rollback()
+        return []
 
 
 def mark_notification(session: Session, user: User, notification_id: UUID, *, is_read: bool) -> dict:

@@ -24,7 +24,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     job_title: Mapped[str | None] = mapped_column(String(120))
     website: Mapped[str | None] = mapped_column(String(2048))
     bio: Mapped[str | None] = mapped_column(Text)
-    notification_prefs: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    notification_prefs: Mapped[dict] = mapped_column(JSONB, nullable=False, default=lambda: {})
 
     projects: Mapped[list["Project"]] = relationship(back_populates="user")
     notifications: Mapped[list["Notification"]] = relationship(back_populates="user")

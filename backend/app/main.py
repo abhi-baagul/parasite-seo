@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.error_handlers import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
+from app.db.ensure_schema import ensure_account_schema
 from app.models import load_models
 from app.services.redis import close_redis, ping_redis
 
@@ -17,6 +18,7 @@ from app.services.redis import close_redis, ping_redis
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     load_models()
+    ensure_account_schema()
     ping_redis()
     yield
     close_redis()
