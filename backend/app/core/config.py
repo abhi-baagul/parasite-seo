@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     local_storage_root: str = Field("storage", alias="LOCAL_STORAGE_ROOT")
     public_app_url: str = Field("", alias="PUBLIC_APP_URL")
 
+    @field_validator("database_url")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        url = value.strip()
+        # Render and Heroku often inject postgres://, which SQLAlchemy rejects.
+        if url.startswith("postgres://"):
+            return "postgresql://" + url[len("postgres://") :]
+        return url
+
     @field_validator("cors_origins")
     @classmethod
     def strip_origins(cls, value: str) -> str:
