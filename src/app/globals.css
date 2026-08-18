@@ -39,8 +39,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-a {
+a,
+a:hover,
+a:focus {
   text-decoration: none;
+}
+
+.sidebar-link,
+.sidebar-brand,
+.sidebar-link:hover,
+.sidebar-brand:hover {
+  text-decoration: none;
+  color: inherit;
 }
 
 .app-shell {
@@ -334,7 +344,21 @@ a {
   color: var(--ps-ink);
 }
 
+.btn {
+  text-decoration: none;
+}
+
 .btn-accent {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--ps-accent);
+  --bs-btn-border-color: var(--ps-accent);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--ps-accent-hover);
+  --bs-btn-hover-border-color: var(--ps-accent-hover);
+  --bs-btn-focus-shadow-rgb: 196, 92, 22;
+  --bs-btn-active-color: #fff;
+  --bs-btn-active-bg: var(--ps-accent-hover);
+  --bs-btn-active-border-color: var(--ps-accent-hover);
   background: var(--ps-accent);
   border-color: var(--ps-accent);
   color: #fff;
@@ -348,6 +372,12 @@ a {
 }
 
 .btn-ghost {
+  --bs-btn-color: var(--ps-ink);
+  --bs-btn-bg: var(--ps-surface);
+  --bs-btn-border-color: var(--ps-border);
+  --bs-btn-hover-color: var(--ps-ink);
+  --bs-btn-hover-bg: var(--ps-surface-2);
+  --bs-btn-hover-border-color: #d2c5b6;
   background: var(--ps-surface);
   border: 1px solid var(--ps-border);
   color: var(--ps-ink);
