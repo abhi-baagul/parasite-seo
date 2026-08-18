@@ -62,7 +62,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setNotifications([]);
       } else {
         setError(err instanceof ApiClientError ? err.message : "Unable to load account");
-      } finally {
+      }
+    } finally {
       setLoading(false);
     }
   }, []);
