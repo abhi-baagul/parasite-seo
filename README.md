@@ -1,5 +1,17 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Backend (Phase 2A / 2B)
+
+The FastAPI service, PostgreSQL schema, Redis connection, Docker Compose, and `/api/v1` CRUD APIs live next to this frontend:
+
+- API docs and setup: `backend/README.md`
+- Compose: `docker compose up --build` from this directory
+- Frontend API base URL: `NEXT_PUBLIC_API_URL` (see `.env.local.example`)
+
+Connected screens (Phase 2B): Projects, Campaigns, Create Content (prompt + draft), Content Studio, Links, Media, Publishing, Published Assets, AI Runs, Analytics overview.
+
+Still mock-backed: Dashboard charts/KPIs, SEO Intelligence, Rank Tracker details, Revenue, Settings channel list, Create Content analysis panel.
+
 ## Getting Started
 
 First, run the development server:
