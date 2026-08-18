@@ -92,6 +92,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       headers: {
         Accept: "application/json",
         ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(typeof window !== "undefined" && window.localStorage.getItem("ps_access_token")
+          ? { Authorization: `Bearer ${window.localStorage.getItem("ps_access_token")}` }
+          : {}),
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
       signal: options.signal,

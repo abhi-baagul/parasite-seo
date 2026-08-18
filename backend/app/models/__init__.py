@@ -21,6 +21,7 @@ from app.models.content import ContentAsset, ContentLink, ContentVersion
 from app.models.content_network import ContentNetworkRun, PublicSlugRedirect
 from app.models.keyword import Keyword
 from app.models.media import MediaAsset
+from app.models.notification import Notification
 from app.models.parasite_seo import ParasiteSEOJob
 from app.models.public_page import PublicPage
 from app.models.pipeline import (
@@ -77,6 +78,7 @@ __all__ = [
     "Keyword",
     "KeywordAnalysisRecord",
     "MediaAsset",
+    "Notification",
     "MediaSuggestion",
     "OutreachActivity",
     "OutreachProspect",

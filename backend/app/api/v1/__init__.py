@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.v1.account import router as account_router
 from app.api.v1.ai_runs import router as ai_runs_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.assets import router as assets_router
@@ -20,6 +21,7 @@ from app.api.v1.publishing import router as publishing_router
 
 api_v1_router = APIRouter(prefix="/api/v1")
 api_v1_router.include_router(health_router)
+api_v1_router.include_router(account_router)
 api_v1_router.include_router(projects_router)
 api_v1_router.include_router(campaigns_router)
 api_v1_router.include_router(prompts_router)

@@ -13,6 +13,7 @@ REQUIRED_TABLES = {
     "quality_checks",
     "keywords",
     "analytics_metrics",
+    "notifications",
 }
 
 

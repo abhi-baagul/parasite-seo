@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedError
-from app.core.security import hash_password
+from app.core.security import decode_token, hash_password
 from app.db.session import get_db
 from app.models.user import User
 
@@ -21,12 +21,24 @@ from app.models.user import User
 def resolve_current_user(
     session: Annotated[Session, Depends(get_db)],
     x_user_id: Annotated[str | None, Header(alias="X-User-Id")] = None,
+    authorization: Annotated[str | None, Header()] = None,
 ) -> User:
     """Return the acting user.
 
-    Optional `X-User-Id` supports multi-user testing before JWT lands.
-    Without it, the configured seed user is used (created if missing).
+    Optional Bearer JWT or `X-User-Id` selects a user. Without either, the seed user is used.
     """
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+        payload = decode_token(token, expected_type="access")
+        try:
+            user_id = UUID(str(payload.get("sub")))
+        except (ValueError, TypeError) as exc:
+            raise UnauthorizedError("Invalid access token") from exc
+        user = session.get(User, user_id)
+        if not user or not user.is_active:
+            raise UnauthorizedError("User not found or inactive")
+        return user
+
     if x_user_id:
         try:
             user_id = UUID(x_user_id)
