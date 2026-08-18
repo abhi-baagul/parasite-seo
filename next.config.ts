@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
+import { apiProxyTarget } from "./src/lib/api-proxy-target";
 
-const backendOrigin = process.env.API_PROXY_TARGET || "http://127.0.0.1:8000";
+const backendOrigin = apiProxyTarget();
 
 const nextConfig: NextConfig = {
   async rewrites() {

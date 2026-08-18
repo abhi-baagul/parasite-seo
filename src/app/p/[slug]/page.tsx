@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PublicArticleView } from "@/features/parasite-seo/PublicArticleView";
+import { apiProxyTarget } from "@/lib/api-proxy-target";
 import type { PublicPagePayload } from "@/services/parasite-seo-service";
 
-const backendOrigin = (process.env.API_PROXY_TARGET || "http://127.0.0.1:8000").replace(/\/$/, "");
+const backendOrigin = apiProxyTarget();
 
 async function fetchPublicPage(slug: string): Promise<PublicPagePayload | null> {
   try {
