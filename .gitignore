@@ -46,9 +46,9 @@ backend/.pytest_cache/
 backend/.mypy_cache/
 backend/*.egg-info/
 
-# local file storage (exports / uploads)
+# local file storage (exports / uploads) — not the Python package at backend/app/storage/
 backend/storage/
-storage/
+/storage/
 
 # vercel
 .vercel
