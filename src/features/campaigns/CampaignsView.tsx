@@ -1,6 +1,7 @@
 "use client";
 
 import { useAsyncLoad } from "@/hooks/useAsyncLoad";
+import Link from "next/link";
 import { useCallback, useState } from "react";
 import { PageScaffold } from "@/components/layout/PageScaffold";
 import { EmptyStateBlock, ErrorState, LoadingState } from "@/components/ui/AsyncState";
@@ -110,6 +111,7 @@ export function CampaignsView() {
                       <th>Type</th>
                       <th>Words</th>
                       <th>Updated</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -125,6 +127,11 @@ export function CampaignsView() {
                         <td>{row.default_content_type}</td>
                         <td>{row.default_word_count}</td>
                         <td>{formatDate(row.updated_at)}</td>
+                        <td className="text-end">
+                          <Link className="btn btn-sm btn-accent" href={`/projects/${row.project_id}`}>
+                            Open project
+                          </Link>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

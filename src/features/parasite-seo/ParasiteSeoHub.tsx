@@ -171,6 +171,7 @@ export function ParasiteSeoHub() {
                   <th>Status</th>
                   <th>Public URL</th>
                   <th>Created</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -198,6 +199,18 @@ export function ParasiteSeoHub() {
                       )}
                     </td>
                     <td>{job.created_at ? formatDate(job.created_at) : "—"}</td>
+                    <td className="text-end">
+                      <div className="d-flex flex-wrap gap-2 justify-content-end">
+                        <Link className="btn btn-sm btn-accent" href={`/parasite-seo/${job.id}`}>
+                          Open
+                        </Link>
+                        {job.content_id ? (
+                          <Link className="btn btn-sm btn-ghost" href={`/content-studio/${job.content_id}`}>
+                            Studio
+                          </Link>
+                        ) : null}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

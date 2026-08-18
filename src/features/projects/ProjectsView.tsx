@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PageScaffold } from "@/components/layout/PageScaffold";
 import { EmptyStateBlock, ErrorState, LoadingState } from "@/components/ui/AsyncState";
@@ -7,9 +9,10 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useProject } from "@/context/ProjectContext";
 import { formatDate } from "@/lib/format";
 import { ApiClientError } from "@/services/api-client";
-import { createProject } from "@/services/project-service";
+import { createProject, deleteProject } from "@/services/project-service";
 
 export function ProjectsView() {
+  const router = useRouter();
   const { projects, setSelectedId, loading, error, refreshProjects } = useProject();
   const [name, setName] = useState("");
   const [niche, setNiche] = useState("");
@@ -31,10 +34,22 @@ export function ProjectsView() {
       setNiche("");
       await refreshProjects();
       setSelectedId(project.id);
+      router.push(`/projects/${project.id}`);
     } catch (err) {
       setFormError(err instanceof ApiClientError ? err.message : "Unable to create project");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onDelete(projectId: string, projectName: string) {
+    if (!window.confirm(`Delete “${projectName}”? This only works if it has no campaigns or content.`)) return;
+    setFormError(null);
+    try {
+      await deleteProject(projectId);
+      await refreshProjects();
+    } catch (err) {
+      setFormError(err instanceof ApiClientError ? err.message : "Unable to delete project");
     }
   }
 
@@ -87,7 +102,9 @@ export function ProjectsView() {
                 <div className="col-md-6" key={project.id}>
                   <div className="surface-card p-4 h-100">
                     <div className="d-flex justify-content-between align-items-start mb-3">
-                      <h2 className="h5 mb-0">{project.name}</h2>
+                      <h2 className="h5 mb-0">
+                        <Link href={`/projects/${project.id}`}>{project.name}</Link>
+                      </h2>
                       <StatusBadge value={project.status} />
                     </div>
                     <p className="text-muted small mb-3">{project.niche || "No niche set"}</p>
@@ -97,13 +114,25 @@ export function ProjectsView() {
                       <span>{project.campaign_count} campaigns</span>
                     </div>
                     <div className="small text-muted mb-3">Updated {formatDate(project.updated_at)}</div>
-                    <button
-                      className="btn btn-sm btn-ghost"
-                      type="button"
-                      onClick={() => setSelectedId(project.id)}
-                    >
-                      Set as current project
-                    </button>
+                    <div className="d-flex flex-wrap gap-2">
+                      <Link className="btn btn-sm btn-accent" href={`/projects/${project.id}`}>
+                        Open
+                      </Link>
+                      <Link
+                        className="btn btn-sm btn-ghost"
+                        href={`/projects/${project.id}`}
+                        onClick={() => setSelectedId(project.id)}
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        className="btn btn-sm btn-ghost"
+                        type="button"
+                        onClick={() => void onDelete(project.id, project.name)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

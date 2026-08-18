@@ -118,6 +118,17 @@ export const PAGE_META: Record<
 };
 
 export function matchPageMeta(pathname: string) {
+  if (pathname.startsWith("/projects/") && pathname !== "/projects") {
+    return {
+      title: "Project",
+      description: "Project profile, generated content, and workspace actions.",
+      crumbs: [
+        { href: "/", label: "Home" },
+        { href: "/projects", label: "Projects" },
+        { label: "Profile" },
+      ],
+    };
+  }
   if (pathname.startsWith("/content-studio/")) {
     return {
       title: "Article editor",

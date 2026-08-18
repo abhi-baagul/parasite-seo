@@ -26,7 +26,7 @@ export function TopNav({ onMenu }: { onMenu: () => void }) {
     if (q.length < 2) return [];
     return projects
       .filter((item) => item.name.toLowerCase().includes(q) || (item.niche ?? "").toLowerCase().includes(q))
-      .map((item) => ({ href: "/projects", label: item.name, kind: "Project" }))
+      .map((item) => ({ href: `/projects/${item.id}`, label: item.name, kind: "Project" }))
       .slice(0, 8);
   }, [query, projects]);
 
@@ -55,6 +55,11 @@ export function TopNav({ onMenu }: { onMenu: () => void }) {
           </option>
         ))}
       </select>
+      {selectedId !== "all" ? (
+        <Link href={`/projects/${selectedId}`} className="btn btn-sm btn-ghost">
+          Open project
+        </Link>
+      ) : null}
 
       <div className="search-field" style={{ flex: "1 1 220px" }} ref={searchRef}>
         <i className="bi bi-search" />

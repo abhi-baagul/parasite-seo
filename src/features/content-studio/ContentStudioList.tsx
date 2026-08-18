@@ -145,6 +145,7 @@ export function ContentStudioList() {
                   <th>Status</th>
                   <th>SEO</th>
                   <th>Updated</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -161,6 +162,11 @@ export function ContentStudioList() {
                     </td>
                     <td>{row.seo_score ?? "—"}</td>
                     <td>{formatDate(row.updated_at)}</td>
+                    <td className="text-end">
+                      <Link className="btn btn-sm btn-accent" href={`/content-studio/${row.id}`}>
+                        Open
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>
