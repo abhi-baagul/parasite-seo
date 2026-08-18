@@ -691,6 +691,30 @@ def export_content(
         data = export_service.export_pdf_bytes(title=content.title, body_html=content.content or "")
         filename = f"{basename}.pdf"
         mime = "application/pdf"
+    elif fmt in {"doc", "docx"}:
+        data = export_service.export_doc_bytes(
+            title=content.title,
+            body_html=content.content or "",
+            meta_description=content.meta_description,
+        )
+        filename = f"{basename}.doc"
+        mime = "application/msword"
+    elif fmt == "csv":
+        from app.models.public_page import PublicPage
+
+        page = session.scalar(select(PublicPage).where(PublicPage.content_id == content.id))
+        data = export_service.export_csv_bytes(
+            title=content.title,
+            slug=content.slug,
+            body_html=content.content or "",
+            seo_title=content.seo_title,
+            meta_description=content.meta_description,
+            public_url=page.public_url if page else None,
+            word_count=content.word_count,
+            status=page.status if page else content.status,
+        )
+        filename = f"{basename}.csv"
+        mime = "text/csv; charset=utf-8"
     else:
         raise BadRequestError("Unsupported export format")
 

@@ -540,3 +540,13 @@ def export_txt(content_id: UUID, session: DbSession, user: CurrentUser) -> Respo
 @router.get("/{content_id}/export/pdf")
 def export_pdf(content_id: UUID, session: DbSession, user: CurrentUser) -> Response:
     return _export_response(session, user, content_id, "pdf")
+
+
+@router.get("/{content_id}/export/doc")
+def export_doc(content_id: UUID, session: DbSession, user: CurrentUser) -> Response:
+    return _export_response(session, user, content_id, "doc")
+
+
+@router.get("/{content_id}/export/csv")
+def export_csv(content_id: UUID, session: DbSession, user: CurrentUser) -> Response:
+    return _export_response(session, user, content_id, "csv")

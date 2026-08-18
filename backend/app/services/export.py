@@ -1,7 +1,8 @@
-"""Phase 5 export helpers — HTML / Markdown / TXT / PDF."""
+"""Phase 5 export helpers — HTML / Markdown / TXT / PDF / DOC / CSV."""
 
 from __future__ import annotations
 
+import csv
 import io
 import re
 from html import unescape
@@ -108,3 +109,59 @@ def export_pdf_bytes(*, title: str, body_html: str) -> bytes:
     buffer = io.BytesIO()
     pdf.output(buffer)
     return buffer.getvalue()
+
+
+def export_doc_bytes(*, title: str, body_html: str, meta_description: str | None = None) -> bytes:
+    """Word-compatible .doc (HTML in Word XML wrapper). Opens in Microsoft Word / Google Docs."""
+    document = export_html_document(title=title, body_html=body_html, meta_description=meta_description)
+    wrapper = (
+        "<html xmlns:o='urn:schemas-microsoft-com:office:office' "
+        "xmlns:w='urn:schemas-microsoft-com:office:word' "
+        "xmlns='http://www.w3.org/TR/REC-html40'>\n"
+        "<head><meta charset='utf-8' />"
+        "<xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml>"
+        "</head>\n<body>\n"
+        f"{document}\n"
+        "</body></html>\n"
+    )
+    return wrapper.encode("utf-8")
+
+
+def export_csv_bytes(
+    *,
+    title: str,
+    slug: str,
+    body_html: str,
+    seo_title: str | None = None,
+    meta_description: str | None = None,
+    public_url: str | None = None,
+    word_count: int | None = None,
+    status: str | None = None,
+) -> bytes:
+    soup = BeautifulSoup(sanitize_html(body_html), "html.parser")
+    headings = [
+        f"{tag.name.upper()}: {tag.get_text(' ', strip=True)}"
+        for tag in soup.find_all(["h1", "h2", "h3"])
+        if tag.get_text(strip=True)
+    ]
+    links = [
+        f"{(a.get_text(' ', strip=True) or a.get('href') or '').strip()}|{a.get('href') or ''}"
+        for a in soup.find_all("a")
+        if a.get("href")
+    ]
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["field", "value"])
+    writer.writerow(["title", title or ""])
+    writer.writerow(["slug", slug or ""])
+    writer.writerow(["public_url", public_url or ""])
+    writer.writerow(["seo_title", seo_title or ""])
+    writer.writerow(["meta_description", meta_description or ""])
+    writer.writerow(["status", status or ""])
+    writer.writerow(["word_count", word_count if word_count is not None else ""])
+    writer.writerow(["plain_text", soup.get_text(" ", strip=True)])
+    for heading in headings:
+        writer.writerow(["heading", heading])
+    for link in links:
+        writer.writerow(["link", link])
+    return buffer.getvalue().encode("utf-8")

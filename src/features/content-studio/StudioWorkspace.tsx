@@ -990,7 +990,7 @@ export function StudioWorkspace({ contentId }: { contentId: string }) {
             <h2 className="section-title">Export</h2>
             <p className="text-muted small">Downloads sanitized article files. Paths are not exposed.</p>
             <div className="d-grid gap-2">
-              {(["html", "markdown", "txt", "pdf"] as const).map((fmt) => (
+              {(["html", "markdown", "txt", "pdf", "doc", "csv"] as const).map((fmt) => (
                 <button
                   key={fmt}
                   type="button"

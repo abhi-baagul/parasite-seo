@@ -143,20 +143,29 @@ export async function sectionEdit(
   }>(`/api/v1/content/${contentId}/ai/section-edit`, "POST", payload);
 }
 
-export function exportUrl(contentId: string, format: "html" | "markdown" | "txt" | "pdf") {
+export function exportUrl(contentId: string, format: "html" | "markdown" | "txt" | "pdf" | "doc" | "csv") {
   const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
   return `${base}/api/v1/content/${contentId}/export/${format}`;
 }
 
-export async function downloadExport(contentId: string, format: "html" | "markdown" | "txt" | "pdf") {
-  const response = await fetch(exportUrl(contentId, format), { cache: "no-store" });
+export async function downloadExport(
+  contentId: string,
+  format: "html" | "markdown" | "txt" | "pdf" | "doc" | "csv",
+) {
+  const headers: HeadersInit = { Accept: "*/*" };
+  if (typeof window !== "undefined") {
+    const token = window.localStorage.getItem("ps_access_token");
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  const response = await fetch(exportUrl(contentId, format), { cache: "no-store", headers });
   if (!response.ok) {
     throw new Error(`Export failed (${response.status})`);
   }
   const blob = await response.blob();
   const disposition = response.headers.get("content-disposition") || "";
   const match = /filename="?([^"]+)"?/i.exec(disposition);
-  const filename = match?.[1] || `export.${format === "markdown" ? "md" : format}`;
+  const ext = format === "markdown" ? "md" : format;
+  const filename = match?.[1] || `export.${ext}`;
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

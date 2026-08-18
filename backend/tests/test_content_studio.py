@@ -87,11 +87,14 @@ def test_studio_payload_versions_export_duplicate(client: TestClient):
     assert restored["restored_from"] == v1["version_number"]
     assert restored["new_version"]["source"] == "restore"
 
-    for fmt in ("html", "markdown", "txt", "pdf"):
+    for fmt in ("html", "markdown", "txt", "pdf", "doc", "csv"):
         resp = client.get(f"/api/v1/content/{cid}/export/{fmt}")
         assert resp.status_code == 200, resp.text
         assert resp.content
         assert "attachment" in resp.headers.get("content-disposition", "").lower()
+    csv_resp = client.get(f"/api/v1/content/{cid}/export/csv")
+    assert b"title" in csv_resp.content
+    assert b"Phase 5 Studio Article" in csv_resp.content
 
     dup = _ok(client.post(f"/api/v1/content/{cid}/duplicate"))
     assert dup["id"] != cid
