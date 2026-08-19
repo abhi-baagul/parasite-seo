@@ -69,3 +69,33 @@ class PublicPage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     published_version: Mapped["ContentVersion | None"] = relationship(
         foreign_keys=[published_version_id],
     )
+    mirrors: Mapped[list["PublicPageMirror"]] = relationship(
+        back_populates="public_page",
+        cascade="all, delete-orphan",
+    )
+
+
+class PublicPageMirror(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Working copies of a public page, labeled with parasite-style cloud hostnames."""
+
+    __tablename__ = "public_page_mirrors"
+    __table_args__ = (
+        UniqueConstraint("public_page_id", "provider", name="uq_public_page_mirrors_page_provider"),
+        Index("ix_public_page_mirrors_public_page_id", "public_page_id"),
+        Index("ix_public_page_mirrors_provider", "provider"),
+        Index("ix_public_page_mirrors_status", "status"),
+    )
+
+    public_page_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("public_pages.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(String(40), nullable=False)
+    label: Mapped[str] = mapped_column(String(120), nullable=False)
+    vanity_slug: Mapped[str] = mapped_column(String(320), nullable=False)
+    live_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    display_host: Mapped[str] = mapped_column(String(320), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="live")
+
+    public_page: Mapped["PublicPage"] = relationship(back_populates="mirrors")

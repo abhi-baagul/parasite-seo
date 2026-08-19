@@ -49,6 +49,16 @@ export type ParasiteJob = {
   updated_at: string | null;
 };
 
+export type PublicPageMirror = {
+  id: string;
+  provider: string;
+  label: string;
+  vanity_slug: string;
+  live_url: string;
+  display_host: string;
+  status: string;
+};
+
 export type WebPageSummary = {
   id: string;
   job_id: string;
@@ -70,6 +80,7 @@ export type WebPageSummary = {
   created_at: string | null;
   updated_at: string | null;
   preview?: PublicPagePayload;
+  mirrors?: PublicPageMirror[];
 };
 
 export type PublicPagePayload = {

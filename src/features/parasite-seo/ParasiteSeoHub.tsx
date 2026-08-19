@@ -247,7 +247,7 @@ export function ParasiteSeoHub() {
                       <StatusBadge value={page.status} />
                     </td>
                     <td>
-                      <code>/p/{page.slug}</code>
+                      <code>/{page.slug}</code>
                     </td>
                     <td>{page.published_at ? formatDate(page.published_at) : "—"}</td>
                     <td>

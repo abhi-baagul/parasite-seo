@@ -162,7 +162,7 @@ export function PublicArticleView({
             <ul className="public-related-list">
               {page.related_pages.map((rel) => (
                 <li key={rel.slug}>
-                  <a href={`/p/${rel.slug}`}>{rel.title}</a>
+                  <a href={`/${rel.slug}`}>{rel.title}</a>
                 </li>
               ))}
             </ul>

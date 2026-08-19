@@ -754,7 +754,7 @@ export function ParasiteSeoWorkflow({ jobId }: { jobId?: string }) {
             <>
               <label className="form-label">Slug</label>
               <div className="input-group mb-3">
-                <span className="input-group-text">/p/</span>
+                <span className="input-group-text">/</span>
                 <input
                   className="form-control"
                   value={slugDraft}
@@ -902,6 +902,45 @@ export function ParasiteSeoWorkflow({ jobId }: { jobId?: string }) {
                   public domain, then republish.
                 </div>
               ) : null}
+              <div className="surface-card p-3 mb-3">
+                <div className="fw-semibold mb-1">Cloud links</div>
+                <p className="small text-muted mb-2">
+                  Each Open/Copy URL is a live copy of this article on this app (path{" "}
+                  <code>{`/c/{cloud}/{slug}`}</code>). Names such as{" "}
+                  <code>slug.s3-website.eu-north-1.amazonaws.com</code> are parasite-style labels, not proof that a
+                  bucket was created on AWS. Connect an authorized destination if you want a real third-party host.
+                </p>
+                <ul className="list-unstyled mb-0">
+                  {(webPage.mirrors || [])
+                    .filter((m) => m.status === "live")
+                    .map((mirror) => (
+                      <li
+                        key={mirror.id}
+                        className="d-flex flex-wrap align-items-start justify-content-between gap-2 py-2 border-bottom"
+                      >
+                        <div>
+                          <div className="fw-semibold">{mirror.label}</div>
+                          <div className="small text-muted">https://{mirror.display_host}/</div>
+                        </div>
+                        <div className="d-flex gap-2">
+                          <a className="btn btn-sm btn-ghost" href={mirror.live_url} target="_blank" rel="noreferrer">
+                            Open
+                          </a>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-ghost"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(mirror.live_url);
+                              setMessage(`${mirror.label} URL copied.`);
+                            }}
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                </ul>
+              </div>
               <div className="surface-card p-3 mb-3">
                 <div className="fw-semibold mb-1">Want supporting links / backlinks?</div>
                 <p className="small text-muted mb-2">

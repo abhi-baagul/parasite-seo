@@ -23,7 +23,7 @@ from app.models.keyword import Keyword
 from app.models.media import MediaAsset
 from app.models.notification import Notification
 from app.models.parasite_seo import ParasiteSEOJob
-from app.models.public_page import PublicPage
+from app.models.public_page import PublicPage, PublicPageMirror
 from app.models.pipeline import (
     ContentGenerationJob,
     ContentOutline,
@@ -84,6 +84,7 @@ __all__ = [
     "OutreachProspect",
     "ParasiteSEOJob",
     "PublicPage",
+    "PublicPageMirror",
     "PublicSlugRedirect",
     "Project",
     "Prompt",

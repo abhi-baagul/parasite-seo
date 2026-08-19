@@ -304,7 +304,7 @@ export function ContentNetworkView() {
                       <tr key={node.content_id}>
                         <td>
                           <div>{node.title}</div>
-                          <code className="small">/p/{node.slug}</code>
+                          <code className="small">/{node.slug}</code>
                         </td>
                         <td>{node.incoming_links}</td>
                         <td>{node.outgoing_links}</td>

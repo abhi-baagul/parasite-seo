@@ -1,4 +1,4 @@
-"""Ensure account columns exist even if Alembic 0010 has not been applied yet."""
+"""Ensure newer schema exists even if Alembic has not been applied yet."""
 
 from sqlalchemy import text
 
@@ -28,6 +28,24 @@ _STATEMENTS = (
     "CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id)",
     "CREATE INDEX IF NOT EXISTS ix_notifications_is_read ON notifications (is_read)",
     "CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications (created_at)",
+    """
+    CREATE TABLE IF NOT EXISTS public_page_mirrors (
+        id UUID PRIMARY KEY,
+        public_page_id UUID NOT NULL REFERENCES public_pages (id) ON DELETE CASCADE,
+        provider VARCHAR(40) NOT NULL,
+        label VARCHAR(120) NOT NULL,
+        vanity_slug VARCHAR(320) NOT NULL,
+        live_url VARCHAR(2048) NOT NULL,
+        display_host VARCHAR(320) NOT NULL,
+        status VARCHAR(32) NOT NULL DEFAULT 'live',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT uq_public_page_mirrors_page_provider UNIQUE (public_page_id, provider)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_public_page_mirrors_public_page_id ON public_page_mirrors (public_page_id)",
+    "CREATE INDEX IF NOT EXISTS ix_public_page_mirrors_provider ON public_page_mirrors (provider)",
+    "CREATE INDEX IF NOT EXISTS ix_public_page_mirrors_status ON public_page_mirrors (status)",
 )
 
 

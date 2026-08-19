@@ -16,7 +16,7 @@ from app.models.content import ContentAsset, ContentLink, ContentVersion
 from app.models.enums import ContentStatus, LinkStatus, MediaStatus, SuggestionStatus
 from app.models.media import MediaAsset
 from app.models.parasite_seo import ParasiteSEOJob
-from app.models.public_page import PublicPage
+from app.models.public_page import PublicPage, PublicPageMirror
 from app.models.seo_enrichment import (
     ContentCategory,
     ContentMetadata,
@@ -32,6 +32,81 @@ PAGE_STATUSES = {"draft", "building", "ready", "published", "unpublished", "arch
 VISIBILITIES = {"private", "public"}
 MIN_BODY_CHARS = 40
 
+# First-path-segment App Router routes (and common aliases) cannot be vanity slugs.
+RESERVED_PUBLIC_SLUGS = frozenset(
+    {
+        "account",
+        "admin",
+        "ai-agents",
+        "analytics",
+        "api",
+        "app",
+        "assets",
+        "auth",
+        "c",
+        "campaigns",
+        "content-studio",
+        "create-content",
+        "dashboard",
+        "docs",
+        "edit",
+        "export",
+        "favicon.ico",
+        "health",
+        "home",
+        "jobs",
+        "links",
+        "login",
+        "logout",
+        "media",
+        "network",
+        "new",
+        "notifications",
+        "p",
+        "page",
+        "pages",
+        "parasite-seo",
+        "preview",
+        "projects",
+        "public",
+        "published-assets",
+        "publishing",
+        "rank-tracker",
+        "register",
+        "revenue",
+        "robots.txt",
+        "seo-intelligence",
+        "settings",
+        "sign-in",
+        "signin",
+        "signup",
+        "sitemap.xml",
+        "static",
+        "studio",
+        "users",
+        "_next",
+    }
+)
+
+# Parasite-style host labels. Clickable live_url always stays on this app unless a
+# connected destination returns a real reachable URL (never a guessed amazonaws host).
+MIRROR_PROVIDERS: tuple[dict[str, str], ...] = (
+    {"provider": "vercel", "label": "Vercel", "suffix": "vercel.app"},
+    {"provider": "netlify", "label": "Netlify", "suffix": "netlify.app"},
+    {"provider": "aws", "label": "Amazon S3 website"},
+    {"provider": "gcp", "label": "Google Cloud / Firebase", "suffix": "web.app"},
+    {"provider": "azure", "label": "Azure Static Web Apps", "suffix": "azurestaticapps.net"},
+    {"provider": "cloudflare", "label": "Cloudflare Pages", "suffix": "pages.dev"},
+    {"provider": "github", "label": "GitHub Pages", "suffix": "github.io"},
+    {"provider": "render", "label": "Render", "suffix": "onrender.com"},
+)
+DEST_PROVIDER_TO_MIRROR = {
+    "aws_s3": "aws",
+    "gcs": "gcp",
+    "azure_blob": "azure",
+    "cloud_static": "aws",
+}
+
 
 def public_base_url() -> str:
     configured = (settings.public_app_url or "").strip().rstrip("/")
@@ -42,7 +117,53 @@ def public_base_url() -> str:
 
 
 def build_public_url(slug: str) -> str:
+    return f"{public_base_url()}/{slug}"
+
+
+def build_legacy_public_url(slug: str) -> str:
     return f"{public_base_url()}/p/{slug}"
+
+
+def build_mirror_live_url(provider: str, slug: str) -> str:
+    return f"{public_base_url()}/c/{provider}/{slug}"
+
+
+def _aws_website_region() -> str:
+    """Gold-standard S3 website host uses eu-north-1 (Stockholm), not REST API region."""
+    return "eu-north-1"
+
+
+def host_vanity_slug(slug: str) -> str:
+    mashed = re.sub(r"[^a-z0-9]", "", (slug or "").lower())[:63]
+    return mashed or slugify(slug, max_length=63)
+
+
+def _display_host(provider: str, slug: str) -> str:
+    host_slug = host_vanity_slug(slug)
+    if provider == "aws":
+        return f"{host_slug}.s3-website.{_aws_website_region()}.amazonaws.com"
+    for spec in MIRROR_PROVIDERS:
+        if spec["provider"] == provider and spec.get("suffix"):
+            return f"{host_slug}.{spec['suffix']}"
+    return f"{host_slug}.{provider}.app"
+
+
+def vanity_slug_base(*, slug: str | None, title: str | None, content_slug: str | None) -> str:
+    """Prefer the article title. Auto slugs are compact (S3 bucket style); user slugs keep hyphens."""
+    explicit = bool(slug and slug.strip())
+    source = (slug or title or content_slug or "").strip()
+    desired = slugify(source)
+    if not explicit:
+        mashed = re.sub(r"[^a-z0-9]", "", desired)[:63]
+        if len(mashed) >= 3:
+            desired = mashed
+    if not desired:
+        raise BadRequestError("Unable to generate a valid slug from the title")
+    if desired in RESERVED_PUBLIC_SLUGS:
+        if explicit:
+            raise BadRequestError("This slug is reserved by the app")
+        desired = f"{desired}page"[:63]
+    return desired
 
 
 def _job_or_404(session: Session, user: User, job_id: UUID) -> ParasiteSEOJob:
@@ -103,7 +224,10 @@ def allocate_unique_slug(
     cleaned = slugify(base, max_length=80)
     candidate = cleaned
     n = 1
-    while _slug_taken(session, candidate, exclude_page_id=exclude_page_id):
+    while (
+        _slug_taken(session, candidate, exclude_page_id=exclude_page_id)
+        or candidate in RESERVED_PUBLIC_SLUGS
+    ):
         n += 1
         suffix = f"-{n}"
         candidate = f"{cleaned[: max(1, 80 - len(suffix))]}{suffix}"
@@ -176,6 +300,144 @@ def _sync_job_flags(job: ParasiteSEOJob, page: PublicPage) -> None:
         job.current_step = "preview"
 
 
+def _serialize_mirror(mirror: PublicPageMirror) -> dict:
+    return {
+        "id": str(mirror.id),
+        "provider": mirror.provider,
+        "label": mirror.label,
+        "vanity_slug": mirror.vanity_slug,
+        "live_url": mirror.live_url,
+        "display_host": mirror.display_host,
+        "status": mirror.status,
+    }
+
+
+def _mirrors_for_page(session: Session, page: PublicPage) -> list[PublicPageMirror]:
+    return list(
+        session.scalars(
+            select(PublicPageMirror)
+            .where(PublicPageMirror.public_page_id == page.id)
+            .order_by(PublicPageMirror.provider.asc())
+        )
+    )
+
+
+def _reachable_external_url(url: str | None) -> bool:
+    """True only for a real http(s) host we were given — never guessed cloud hostnames."""
+    if not url:
+        return False
+    value = url.strip()
+    if value.startswith("/"):
+        return False
+    from urllib.parse import urlparse
+
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return False
+    host = parsed.netloc.lower().split(":")[0]
+    if host in {"localhost", "127.0.0.1"} or host.endswith(".local"):
+        return False
+    if "mock-source" in host:
+        return False
+    return True
+
+
+def _try_authorized_cloud_publish(session: Session, page: PublicPage, content: ContentAsset) -> dict[str, str]:
+    """If the project already has authorized cloud destinations, publish static HTML there.
+
+    Returned URLs overlay mirror live_url only when they are actually reachable (not mock/local).
+    """
+    overlays: dict[str, str] = {}
+    try:
+        from app.integrations.publishing_providers import get_publishing_provider
+        from app.models.backlink_campaign import PublishingDestination
+    except Exception:
+        return overlays
+
+    dests = list(
+        session.scalars(
+            select(PublishingDestination).where(
+                PublishingDestination.project_id == page.project_id,
+                PublishingDestination.is_active.is_(True),
+                PublishingDestination.authorization_status == "authorized",
+                PublishingDestination.provider_type.in_(tuple(DEST_PROVIDER_TO_MIRROR.keys())),
+            )
+        )
+    )
+    html = content.content or ""
+    job = session.get(ParasiteSEOJob, page.job_id)
+    target_url = page.public_url or build_public_url(page.slug)
+    anchor = page.title
+    attribute = "sponsored"
+    if job and isinstance(job.target_link, dict):
+        target_url = str(job.target_link.get("target_url") or target_url)
+        anchor = str(job.target_link.get("anchor_text") or anchor)
+        attribute = str(job.target_link.get("link_attribute") or attribute)
+
+    for dest in dests:
+        mirror_key = DEST_PROVIDER_TO_MIRROR.get(dest.provider_type)
+        if not mirror_key or mirror_key in overlays:
+            continue
+        try:
+            provider = get_publishing_provider(dest.provider_type)
+            result = provider.publish(
+                configuration=dict(dest.configuration or {}),
+                title=page.title,
+                html=html,
+                slug=page.slug,
+                target_url=target_url,
+                anchor_text=anchor,
+                link_attribute=attribute,
+            )
+        except Exception:
+            continue
+        if result.success and _reachable_external_url(result.source_url):
+            overlays[mirror_key] = result.source_url.rstrip("/") + (
+                "/" if dest.provider_type == "aws_s3" else ""
+            )
+    return overlays
+
+
+def _sync_mirrors(
+    session: Session,
+    page: PublicPage,
+    *,
+    live: bool,
+    content: ContentAsset | None = None,
+) -> None:
+    existing = {m.provider: m for m in _mirrors_for_page(session, page)}
+    overlays: dict[str, str] = {}
+    if live and content is not None:
+        overlays = _try_authorized_cloud_publish(session, page, content)
+
+    status = "live" if live else "unpublished"
+    vanity = host_vanity_slug(page.slug)
+    for spec in MIRROR_PROVIDERS:
+        provider = spec["provider"]
+        default_live = build_mirror_live_url(provider, page.slug)
+        live_url = overlays.get(provider) or default_live
+        display_host = _display_host(provider, page.slug)
+        row = existing.get(provider)
+        if row is None:
+            row = PublicPageMirror(
+                public_page_id=page.id,
+                provider=provider,
+                label=spec["label"],
+                vanity_slug=vanity,
+                live_url=live_url,
+                display_host=display_host,
+                status=status,
+            )
+            session.add(row)
+        else:
+            row.label = spec["label"]
+            row.vanity_slug = vanity
+            row.live_url = live_url
+            row.display_host = display_host
+            row.status = status
+    session.flush()
+
+
 def serialize_page(session: Session, page: PublicPage, *, include_preview: bool = False) -> dict:
     content = session.get(ContentAsset, page.content_id)
     latest = _latest_version(session, page.content_id) if content else None
@@ -200,6 +462,7 @@ def serialize_page(session: Session, page: PublicPage, *, include_preview: bool 
         "content_version_id": str(page.content_version_id) if page.content_version_id else None,
         "published_version_id": str(page.published_version_id) if page.published_version_id else None,
         "has_newer_content": has_newer,
+        "mirrors": [_serialize_mirror(m) for m in _mirrors_for_page(session, page)],
         "error_message": page.error_message,
         "seo_score": content.seo_score if content else None,
         "quality_score": content.quality_score if content else None,
@@ -323,7 +586,9 @@ def build_public_payload(
                 "anchor_text": link.anchor_text,
                 "target_url": safe,
                 "link_attribute": link.link_attribute,
-                "is_internal": safe.startswith(public_base_url()) or "/p/" in safe,
+                "is_internal": safe.startswith(public_base_url())
+                or "/p/" in safe
+                or "/c/" in safe,
             }
         )
 
@@ -497,9 +762,7 @@ def create_web_page(
             page.error_message = None
             page.title = content.title
 
-        desired = slugify(slug or content.slug or content.title)
-        if not desired:
-            raise BadRequestError("Unable to generate a valid slug from the title")
+        desired = vanity_slug_base(slug=slug, title=content.title, content_slug=content.slug)
         page.slug = allocate_unique_slug(session, desired, exclude_page_id=page.id)
         page.public_url = build_public_url(page.slug)
         page.canonical_url = page.public_url
@@ -509,6 +772,7 @@ def create_web_page(
         page.visibility = "private"
         content.status = ContentStatus.APPROVED.value
         _sync_job_flags(job, page)
+        _sync_mirrors(session, page, live=False)
         session.flush()
     except IntegrityError as exc:
         page.status = "failed"
@@ -549,9 +813,7 @@ def update_web_page(
     if page.status == "archived":
         raise BadRequestError("Archived pages cannot be edited; create a new page")
     if slug is not None:
-        desired = slugify(slug)
-        if not desired:
-            raise BadRequestError("Invalid slug")
+        desired = vanity_slug_base(slug=slug, title=None, content_slug=None)
         if page.status == "published" and desired != page.slug:
             raise BadRequestError("Unpublish before changing the slug of a live page")
         old_slug = page.slug
@@ -569,6 +831,9 @@ def update_web_page(
                 new_slug=page.slug,
                 public_page_id=page.id,
             )
+        live = page.status == "published" and page.visibility == "public"
+        content = session.get(ContentAsset, page.content_id)
+        _sync_mirrors(session, page, live=live, content=content if live else None)
     if visibility is not None:
         if visibility not in VISIBILITIES:
             raise BadRequestError("visibility must be private or public")
@@ -617,6 +882,7 @@ def publish_web_page(session: Session, user: User, job_id: UUID) -> dict:
         page.error_message = None
         content.status = ContentStatus.APPROVED.value
         _sync_job_flags(job, page)
+        _sync_mirrors(session, page, live=True, content=content)
         session.flush()
     except IntegrityError as exc:
         page.status = "failed"
@@ -643,6 +909,7 @@ def unpublish_web_page(session: Session, user: User, job_id: UUID) -> dict:
     page.status = "unpublished"
     page.visibility = "private"
     _sync_job_flags(job, page)
+    _sync_mirrors(session, page, live=False)
     session.flush()
     return serialize_page(session, page)
 
@@ -655,6 +922,7 @@ def archive_web_page(session: Session, user: User, job_id: UUID) -> dict:
     page.status = "archived"
     page.visibility = "private"
     _sync_job_flags(job, page)
+    _sync_mirrors(session, page, live=False)
     session.flush()
     return serialize_page(session, page)
 
@@ -676,6 +944,7 @@ def update_published_page(session: Session, user: User, job_id: UUID) -> dict:
     page.published_version_id = version.id
     page.title = content.title
     page.updated_at = datetime.now(UTC)
+    _sync_mirrors(session, page, live=True, content=content)
     session.flush()
     return serialize_page(session, page, include_preview=True)
 

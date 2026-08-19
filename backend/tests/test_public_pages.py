@@ -66,6 +66,7 @@ def test_public_page_lifecycle(client: TestClient):
     assert created["status"] == "ready"
     assert created["visibility"] == "private"
     assert created["slug"]
+    assert "-" not in created["slug"]
     slug = created["slug"]
 
     # Duplicate create should fail
@@ -86,7 +87,18 @@ def test_public_page_lifecycle(client: TestClient):
     assert published["status"] == "published"
     assert published["visibility"] == "public"
     assert published["public_url"]
-    assert published["public_url"].endswith(f"/p/{slug}")
+    assert published["public_url"].endswith(f"/{slug}")
+    assert "/p/" not in published["public_url"]
+    mirrors = published.get("mirrors") or []
+    assert len(mirrors) >= 8
+    providers = {m["provider"] for m in mirrors}
+    assert {"aws", "vercel", "netlify", "gcp"}.issubset(providers)
+    aws = next(m for m in mirrors if m["provider"] == "aws")
+    assert aws["status"] == "live"
+    assert ".s3-website." in aws["display_host"]
+    assert aws["display_host"].endswith(".amazonaws.com")
+    assert f"/c/aws/{slug}" in aws["live_url"]
+    assert "amazonaws.com" not in aws["live_url"]
 
     page = _ok(client.get(f"/api/v1/public-pages/{slug}"))
     assert page["title"]
@@ -104,6 +116,7 @@ def test_public_page_lifecycle(client: TestClient):
 
     unpublished = _ok(client.post(f"/api/v1/parasite-seo/jobs/{job_id}/web-page/unpublish"))
     assert unpublished["status"] == "unpublished"
+    assert all(m["status"] == "unpublished" for m in unpublished.get("mirrors") or [])
     assert client.get(f"/api/v1/public-pages/{slug}").status_code == 404
 
     republished = _ok(client.post(f"/api/v1/parasite-seo/jobs/{job_id}/web-page/publish"))
@@ -121,21 +134,29 @@ def test_public_page_lifecycle(client: TestClient):
 def test_slug_uniqueness(client: TestClient):
     job_a = _seed_ready_job(client)
     job_b = _seed_ready_job(client)
+    token = uuid4().hex[:8]
+    base = f"diclock-referral-code-{token}"
     a = _ok(
         client.post(
             f"/api/v1/parasite-seo/jobs/{job_a}/web-page",
-            json={"slug": "diclock-referral-code-2026"},
+            json={"slug": base},
         )
     )
-    assert a["slug"] == "diclock-referral-code-2026"
+    assert a["slug"] == base
     b = _ok(
         client.post(
             f"/api/v1/parasite-seo/jobs/{job_b}/web-page",
-            json={"slug": "diclock-referral-code-2026"},
+            json={"slug": base},
         )
     )
-    assert b["slug"] == "diclock-referral-code-2026-2"
+    assert b["slug"] == f"{base}-2"
     assert a["slug"] != b["slug"]
+
+    reserved = client.patch(
+        f"/api/v1/parasite-seo/jobs/{job_a}/web-page",
+        json={"slug": "settings"},
+    )
+    assert reserved.status_code == 400
 
 
 def test_unsafe_public_access(client: TestClient):

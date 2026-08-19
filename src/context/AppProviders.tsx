@@ -5,10 +5,11 @@ import { ProjectProvider } from "@/context/ProjectContext";
 import { SessionProvider, useSession } from "@/context/SessionContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { SignInScreen } from "@/features/settings/SignInScreen";
+import { isPublicArticlePathname } from "@/lib/public-article";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isPublicPage = pathname?.startsWith("/p/");
+  const isPublicPage = isPublicArticlePathname(pathname);
 
   if (isPublicPage) {
     return <>{children}</>;
